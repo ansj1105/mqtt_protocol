@@ -1,0 +1,50 @@
+{
+  "server": {
+    "host": "0.0.0.0",
+    "websocket_port": 8765,
+    "api_port": 8080
+  },
+  "tls": {
+    "enabled": true,
+    "cert_path": "./certs/server.crt",
+    "key_path": "./certs/server.key",
+    "ca_path": "./certs/ca.crt"
+  },
+  "pqc": {
+    "enabled": true,
+    "algorithms": {
+      "kem": "kyber768",
+      "kex": "x25519",
+      "hybrid_mode": true
+    },
+    "supported_algorithms": [
+      "kyber512",
+      "kyber768",
+      "kyber1024",
+      "kyber768_x25519",
+      "kyber1024_x448"
+    ]
+  },
+  "security": {
+    "max_message_size": 1048576,
+    "connection_timeout": 300,
+    "max_connections": 1000,
+    "rate_limit": {
+      "enabled": true,
+      "max_requests_per_minute": 60
+    }
+  },
+  "tc375": {
+    "client_timeout": 30,
+    "max_retries": 3,
+    "supported_protocols": ["v1", "v2"],
+    "default_protocol": "v2"
+  },
+  "logging": {
+    "level": "INFO",
+    "format": "json",
+    "file": "./logs/server.log",
+    "console": true
+  }
+}
+
