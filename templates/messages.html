@@ -1,0 +1,360 @@
+{% extends "base.html" %}
+
+{% block title %}메시지 관리 - WebSocket Admin{% endblock %}
+{% block header %}메시지 관리{% endblock %}
+
+{% block content %}
+<div class="message-panel">
+    <!-- 브로드캐스트 섹션 -->
+    <div class="card">
+        <h3>📢 모든 클라이언트에 브로드캐스트</h3>
+        <div class="message-form">
+            <select id="messageType">
+                <option value="notification">알림</option>
+                <option value="alert">경고</option>
+                <option value="info">정보</option>
+                <option value="command">명령</option>
+            </select>
+            <textarea id="broadcastMessage" placeholder="메시지 내용을 입력하세요..." rows="3"></textarea>
+            <button onclick="sendBroadcast()" class="btn btn-primary">📤 전체 전송</button>
+        </div>
+    </div>
+
+    <!-- 특정 클라이언트에 전송 -->
+    <div class="card">
+        <h3>📨 특정 클라이언트에 전송</h3>
+        <div class="message-form">
+            <select id="targetClient">
+                <option value="">클라이언트 선택...</option>
+            </select>
+            <textarea id="privateMessage" placeholder="메시지 내용..." rows="3"></textarea>
+            <button onclick="sendPrivateMessage()" class="btn btn-success">📤 전송</button>
+        </div>
+    </div>
+
+    <!-- 활성 연결 목록 -->
+    <div class="card">
+        <div class="table-header">
+            <h3>🔗 활성 연결 ({{ total }}개)</h3>
+            <button onclick="refreshConnections()" class="btn">🔄 새로고침</button>
+        </div>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>클라이언트 ID</th>
+                    <th>주소</th>
+                    <th>상태</th>
+                    <th>연결 시간</th>
+                    <th>메시지 (송/수신)</th>
+                    <th>작업</th>
+                </tr>
+            </thead>
+            <tbody id="connectionsList">
+                {% for conn in connections %}
+                <tr>
+                    <td><code class="client-id">{{ conn.id[:40] }}...</code></td>
+                    <td>{{ conn.remote_address }}</td>
+                    <td><span class="badge {{ conn.status }}">{{ conn.status }}</span></td>
+                    <td>{{ conn.connected_at }}</td>
+                    <td>{{ conn.messages_sent }} / {{ conn.messages_received }}</td>
+                    <td>
+                        <button onclick="selectClient('{{ conn.id }}')" class="btn-small">선택</button>
+                        <button onclick="disconnectClient('{{ conn.id }}')" class="btn-small btn-danger">연결 해제</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 메시지 로그 -->
+    <div class="card">
+        <h3>📋 메시지 로그</h3>
+        <div class="message-log" id="messageLog">
+            <div class="log-empty">메시지 로그가 여기에 표시됩니다...</div>
+        </div>
+    </div>
+</div>
+
+<style>
+.message-panel {
+    display: grid;
+    gap: 20px;
+}
+
+.card {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.message-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.message-form select {
+    padding: 10px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+.message-form textarea {
+    padding: 10px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 14px;
+    resize: vertical;
+}
+
+.btn-primary {
+    background: #2196F3;
+}
+
+.btn-success {
+    background: #4CAF50;
+}
+
+.btn-small {
+    padding: 5px 10px;
+    font-size: 12px;
+    margin-right: 5px;
+}
+
+.btn-danger {
+    background: #f44336;
+}
+
+.message-log {
+    background: #f5f5f5;
+    padding: 15px;
+    border-radius: 8px;
+    max-height: 400px;
+    overflow-y: auto;
+    font-family: monospace;
+}
+
+.log-entry {
+    padding: 8px;
+    margin-bottom: 5px;
+    background: white;
+    border-left: 3px solid #4CAF50;
+    border-radius: 4px;
+}
+
+.log-entry.sent {
+    border-left-color: #2196F3;
+}
+
+.log-entry.error {
+    border-left-color: #f44336;
+}
+
+.log-empty {
+    color: #999;
+    text-align: center;
+    padding: 20px;
+}
+</style>
+
+<script>
+let messageLog = [];
+
+// 페이지 로드 시 연결 목록 가져오기
+async function refreshConnections() {
+    try {
+        const response = await fetch('/api/connections');
+        const data = await response.json();
+        
+        // 클라이언트 선택 드롭다운 업데이트
+        const select = document.getElementById('targetClient');
+        select.innerHTML = '<option value="">클라이언트 선택...</option>';
+        
+        data.connections.forEach(conn => {
+            const option = document.createElement('option');
+            option.value = conn.id;
+            option.textContent = `${conn.remote_address} (${conn.id.substring(0, 20)}...)`;
+            select.appendChild(option);
+        });
+        
+        // 테이블 업데이트
+        updateConnectionsTable(data.connections);
+        
+    } catch (error) {
+        console.error('Error refreshing connections:', error);
+        addLog('연결 목록 새로고침 실패: ' + error.message, 'error');
+    }
+}
+
+function updateConnectionsTable(connections) {
+    const tbody = document.getElementById('connectionsList');
+    tbody.innerHTML = '';
+    
+    connections.forEach(conn => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><code class="client-id">${conn.id.substring(0, 40)}...</code></td>
+            <td>${conn.remote_address}</td>
+            <td><span class="badge ${conn.status}">${conn.status}</span></td>
+            <td>${conn.connected_at}</td>
+            <td>${conn.messages_sent} / ${conn.messages_received}</td>
+            <td>
+                <button onclick="selectClient('${conn.id}')" class="btn-small">선택</button>
+                <button onclick="disconnectClient('${conn.id}')" class="btn-small btn-danger">연결 해제</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+// 브로드캐스트 전송
+async function sendBroadcast() {
+    const messageType = document.getElementById('messageType').value;
+    const messageText = document.getElementById('broadcastMessage').value;
+    
+    if (!messageText.trim()) {
+        alert('메시지를 입력하세요!');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/broadcast', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                message: {
+                    type: messageType,
+                    text: messageText,
+                    from: 'admin',
+                    timestamp: new Date().toISOString()
+                }
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            addLog(`✅ 브로드캐스트 성공: ${result.data.recipients}명에게 전송`, 'sent');
+            document.getElementById('broadcastMessage').value = '';
+        } else {
+            addLog('❌ 전송 실패: ' + result.message, 'error');
+        }
+        
+    } catch (error) {
+        addLog('❌ 에러: ' + error.message, 'error');
+    }
+}
+
+// 개인 메시지 전송
+async function sendPrivateMessage() {
+    const clientId = document.getElementById('targetClient').value;
+    const messageText = document.getElementById('privateMessage').value;
+    
+    if (!clientId) {
+        alert('클라이언트를 선택하세요!');
+        return;
+    }
+    
+    if (!messageText.trim()) {
+        alert('메시지를 입력하세요!');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/send', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                client_id: clientId,
+                message: {
+                    text: messageText,
+                    from: 'admin',
+                    timestamp: new Date().toISOString()
+                }
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            addLog(`✅ 메시지 전송 성공: ${clientId.substring(0, 20)}...`, 'sent');
+            document.getElementById('privateMessage').value = '';
+        } else {
+            addLog('❌ 전송 실패', 'error');
+        }
+        
+    } catch (error) {
+        addLog('❌ 에러: ' + error.message, 'error');
+    }
+}
+
+// 클라이언트 선택
+function selectClient(clientId) {
+    document.getElementById('targetClient').value = clientId;
+    addLog(`클라이언트 선택됨: ${clientId.substring(0, 30)}...`, 'info');
+}
+
+// 클라이언트 연결 해제
+async function disconnectClient(clientId) {
+    if (!confirm('정말로 이 클라이언트의 연결을 해제하시겠습니까?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/disconnect', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                client_id: clientId,
+                reason: 'Disconnected by admin'
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            addLog(`✅ 연결 해제됨: ${clientId.substring(0, 20)}...`, 'sent');
+            refreshConnections();
+        }
+        
+    } catch (error) {
+        addLog('❌ 에러: ' + error.message, 'error');
+    }
+}
+
+// 로그 추가
+function addLog(message, type = 'info') {
+    const logDiv = document.getElementById('messageLog');
+    const entry = document.createElement('div');
+    entry.className = `log-entry ${type}`;
+    entry.innerHTML = `
+        <span class="log-time">${new Date().toLocaleTimeString('ko-KR')}</span>
+        <span class="log-message">${message}</span>
+    `;
+    
+    // 비어있으면 기존 내용 삭제
+    if (logDiv.querySelector('.log-empty')) {
+        logDiv.innerHTML = '';
+    }
+    
+    logDiv.appendChild(entry);
+    logDiv.scrollTop = logDiv.scrollHeight;
+    
+    // 최대 100개만 유지
+    const entries = logDiv.querySelectorAll('.log-entry');
+    if (entries.length > 100) {
+        entries[0].remove();
+    }
+}
+
+// 초기 로드
+refreshConnections();
+
+// 5초마다 자동 새로고침
+setInterval(refreshConnections, 5000);
+</script>
+{% endblock %}
+

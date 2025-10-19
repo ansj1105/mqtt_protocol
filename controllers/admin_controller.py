@@ -83,6 +83,19 @@ def create_admin_router(
         
         return templates.TemplateResponse("devices.html", context)
     
+    @router.get("/messages", response_class=HTMLResponse)
+    async def messages_page(request: Request):
+        """Messages management page."""
+        connections = connection_service.get_active_connections()
+        
+        context = {
+            "request": request,
+            "connections": [conn.to_dict() for conn in connections],
+            "total": len(connections)
+        }
+        
+        return templates.TemplateResponse("messages.html", context)
+    
     @router.get("/logs", response_class=HTMLResponse)
     async def logs_page(request: Request):
         """Logs viewer page."""

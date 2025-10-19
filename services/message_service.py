@@ -48,8 +48,8 @@ class MessageService(LoggerMixin):
             # Validate size
             validate_message_size(message_str, self.config.security.max_message_size)
             
-            # Send
-            await websocket.send(message_str)
+            # Send (FastAPI WebSocket uses send_text for strings)
+            await websocket.send_text(message_str)
             
             # Update connection statistics
             connection = self.connection_service.get_connection(connection_id)
