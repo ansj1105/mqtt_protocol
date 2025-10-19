@@ -196,10 +196,13 @@ def create_ssl_context(config) -> ssl.SSLContext:
     return ssl_context
 
 
+# Create app instance at module level for uvicorn
+app = create_app()
+
+
 def main():
     """Main entry point."""
-    # Create app
-    app = create_app()
+    # Use the module-level app instance
     container = get_container()
     config = container.config
     logger = get_logger(__name__)
