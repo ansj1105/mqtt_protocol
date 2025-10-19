@@ -1,0 +1,12 @@
+version: '3.8'
+
+# 개발용 오버라이드 (선택사항)
+services:
+  websocket-server:
+    volumes:
+      - ./:/app
+    environment:
+      - LOG_LEVEL=DEBUG
+    ports:
+      - "8765:8765"
+    command: uvicorn main:app --host 0.0.0.0 --port 8765 --reload

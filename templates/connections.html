@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}연결 관리 - WebSocket Admin{% endblock %}
+{% block header %}연결 관리{% endblock %}
+
+{% block content %}
+<div class="table-card">
+    <div class="table-header">
+        <h3>활성 연결 ({{ total }}개)</h3>
+        <button onclick="location.reload()" class="btn">🔄 새로고침</button>
+    </div>
+    
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>연결 ID</th>
+                <th>원격 주소</th>
+                <th>상태</th>
+                <th>연결 시간</th>
+                <th>마지막 활동</th>
+                <th>메시지 송신</th>
+                <th>메시지 수신</th>
+                <th>데이터 송신</th>
+                <th>데이터 수신</th>
+                <th>PQC 세션</th>
+                <th>TC375 디바이스</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for conn in connections %}
+            <tr>
+                <td><code>{{ conn.id }}</code></td>
+                <td>{{ conn.remote_address }}</td>
+                <td><span class="badge {{ conn.status }}">{{ conn.status }}</span></td>
+                <td>{{ conn.connected_at }}</td>
+                <td>{{ conn.last_activity }}</td>
+                <td>{{ conn.messages_sent }}</td>
+                <td>{{ conn.messages_received }}</td>
+                <td>{{ (conn.bytes_sent / 1024) | round(2) }} KB</td>
+                <td>{{ (conn.bytes_received / 1024) | round(2) }} KB</td>
+                <td>{{ conn.pqc_session_id or '-' }}</td>
+                <td>{{ conn.tc375_device_id or '-' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+

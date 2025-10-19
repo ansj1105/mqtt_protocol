@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}TC375 디바이스 - WebSocket Admin{% endblock %}
+{% block header %}TC375 디바이스 관리{% endblock %}
+
+{% block content %}
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon">✅</div>
+        <div class="stat-content">
+            <h3>온라인</h3>
+            <p class="stat-value">{{ stats.online }}</p>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">❌</div>
+        <div class="stat-content">
+            <h3>오프라인</h3>
+            <p class="stat-value">{{ stats.offline }}</p>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">⚙️</div>
+        <div class="stat-content">
+            <h3>사용중</h3>
+            <p class="stat-value">{{ stats.busy }}</p>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">⚠️</div>
+        <div class="stat-content">
+            <h3>오류</h3>
+            <p class="stat-value">{{ stats.error }}</p>
+        </div>
+    </div>
+</div>
+
+<div class="table-card">
+    <div class="table-header">
+        <h3>전체 디바이스</h3>
+        <button onclick="location.reload()" class="btn">🔄 새로고침</button>
+    </div>
+    
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>디바이스 ID</th>
+                <th>연결 ID</th>
+                <th>프로토콜</th>
+                <th>상태</th>
+                <th>펌웨어</th>
+                <th>하드웨어</th>
+                <th>등록 시간</th>
+                <th>마지막 하트비트</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for device in devices %}
+            <tr>
+                <td><code>{{ device.id }}</code></td>
+                <td><code>{{ device.connection_id[:30] }}...</code></td>
+                <td><span class="badge">{{ device.protocol }}</span></td>
+                <td><span class="badge {{ device.status }}">{{ device.status }}</span></td>
+                <td>{{ device.firmware_version or 'N/A' }}</td>
+                <td>{{ device.hardware_version or 'N/A' }}</td>
+                <td>{{ device.registered_at }}</td>
+                <td>{{ device.last_heartbeat }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+

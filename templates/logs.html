@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}로그 - WebSocket Admin{% endblock %}
+{% block header %}서버 로그{% endblock %}
+
+{% block content %}
+<div class="log-card">
+    <div class="log-controls">
+        <button onclick="fetchLogs()" class="btn">🔄 새로고침</button>
+        <button onclick="toggleAutoRefresh()" class="btn" id="autoRefreshBtn">▶️ 자동 새로고침</button>
+        <select id="logLevel" onchange="filterLogs()">
+            <option value="">전체</option>
+            <option value="DEBUG">DEBUG</option>
+            <option value="INFO">INFO</option>
+            <option value="WARNING">WARNING</option>
+            <option value="ERROR">ERROR</option>
+        </select>
+    </div>
+    
+    <div class="log-viewer" id="logViewer">
+        <div class="log-loading">로그를 불러오는 중...</div>
+    </div>
+</div>
+
+<script>
+let autoRefresh = false;
+let autoRefreshInterval;
+
+async function fetchLogs() {
+    try {
+        const response = await fetch('/api/logs?lines=100');
+        if (response.ok) {
+            const logs = await response.json();
+            displayLogs(logs);
+        } else {
+            document.getElementById('logViewer').innerHTML = 
+                '<div class="log-error">로그를 불러올 수 없습니다.</div>';
+        }
+    } catch (error) {
+        document.getElementById('logViewer').innerHTML = 
+            `<div class="log-error">오류: ${error.message}</div>`;
+    }
+}
+
+function displayLogs(logs) {
+    const viewer = document.getElementById('logViewer');
+    const level = document.getElementById('logLevel').value;
+    
+    let html = '';
+    logs.forEach(log => {
+        if (!level || log.level === level) {
+            const levelClass = log.level ? log.level.toLowerCase() : 'info';
+            html += `
+                <div class="log-entry ${levelClass}">
+                    <span class="log-time">${log.timestamp || ''}</span>
+                    <span class="log-level">${log.level || 'INFO'}</span>
+                    <span class="log-message">${log.message || JSON.stringify(log)}</span>
+                </div>
+            `;
+        }
+    });
+    
+    viewer.innerHTML = html || '<div class="log-empty">로그가 없습니다.</div>';
+    viewer.scrollTop = viewer.scrollHeight;
+}
+
+function filterLogs() {
+    fetchLogs();
+}
+
+function toggleAutoRefresh() {
+    autoRefresh = !autoRefresh;
+    const btn = document.getElementById('autoRefreshBtn');
+    
+    if (autoRefresh) {
+        btn.textContent = '⏸️ 자동 새로고침';
+        btn.classList.add('active');
+        autoRefreshInterval = setInterval(fetchLogs, 5000);
+    } else {
+        btn.textContent = '▶️ 자동 새로고침';
+        btn.classList.remove('active');
+        clearInterval(autoRefreshInterval);
+    }
+}
+
+// 초기 로드
+fetchLogs();
+</script>
+{% endblock %}
+

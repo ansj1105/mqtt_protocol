@@ -15,6 +15,8 @@ import uvicorn
 
 from dependencies import init_container, get_container
 from controllers.api_controller import create_api_router
+from controllers.admin_controller import create_admin_router
+from fastapi.staticfiles import StaticFiles
 from utils.logger import get_logger
 
 
@@ -122,6 +124,17 @@ def create_app() -> FastAPI:
         container.pqc_service
     )
     app.include_router(api_router, prefix="/api", tags=["API"])
+    
+    # Add Admin routes
+    admin_router = create_admin_router(
+        container.connection_service,
+        container.tc375_service,
+        container.pqc_service
+    )
+    app.include_router(admin_router, prefix="/admin", tags=["Admin"])
+    
+    # Mount static files
+    app.mount("/static", StaticFiles(directory="static"), name="static")
     
     # WebSocket endpoint
     @app.websocket("/ws")

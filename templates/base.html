@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}WebSocket Server Admin{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/admin.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <nav class="sidebar">
+            <div class="logo">
+                <h2>🔌 WebSocket</h2>
+                <p>Admin Dashboard</p>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="/admin/" class="{% if request.url.path == '/admin/' %}active{% endif %}">
+                    📊 대시보드
+                </a></li>
+                <li><a href="/admin/connections" class="{% if 'connections' in request.url.path %}active{% endif %}">
+                    🔗 연결 관리
+                </a></li>
+                <li><a href="/admin/devices" class="{% if 'devices' in request.url.path %}active{% endif %}">
+                    🖥️ TC375 디바이스
+                </a></li>
+                <li><a href="/admin/logs" class="{% if 'logs' in request.url.path %}active{% endif %}">
+                    📋 로그
+                </a></li>
+                <li><a href="/docs" target="_blank">
+                    📚 API 문서
+                </a></li>
+            </ul>
+            <div class="sidebar-footer">
+                <p>Server: 54.234.98.110</p>
+                <p>Port: 8765</p>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="header">
+                <h1>{% block header %}Dashboard{% endblock %}</h1>
+                <div class="header-info">
+                    <span id="server-time">{{ server_time }}</span>
+                    <span class="status-badge online">🟢 Online</span>
+                </div>
+            </header>
+
+            <div class="content">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+
+    <script src="/static/js/admin.js"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
+

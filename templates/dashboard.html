@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - WebSocket Admin{% endblock %}
+{% block header %}대시보드{% endblock %}
+
+{% block content %}
+<!-- Stats Cards -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon">🔗</div>
+        <div class="stat-content">
+            <h3>활성 연결</h3>
+            <p class="stat-value" id="active-connections">{{ stats.connections.active_connections }}</p>
+            <p class="stat-label">/ {{ stats.connections.total_connections }} 총 연결</p>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon">🖥️</div>
+        <div class="stat-content">
+            <h3>TC375 디바이스</h3>
+            <p class="stat-value" id="online-devices">{{ stats.tc375.online }}</p>
+            <p class="stat-label">/ {{ stats.tc375.total }} 총 디바이스</p>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon">🔐</div>
+        <div class="stat-content">
+            <h3>PQC 세션</h3>
+            <p class="stat-value">{{ stats.pqc.valid }}</p>
+            <p class="stat-label">유효한 세션</p>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon">📨</div>
+        <div class="stat-content">
+            <h3>총 메시지</h3>
+            <p class="stat-value">{{ stats.connections.total_messages_received + stats.connections.total_messages_sent }}</p>
+            <p class="stat-label">송/수신</p>
+        </div>
+    </div>
+</div>
+
+<!-- Charts -->
+<div class="charts-grid">
+    <div class="chart-card">
+        <h3>TC375 프로토콜 분포</h3>
+        <canvas id="protocolChart"></canvas>
+    </div>
+    
+    <div class="chart-card">
+        <h3>PQC 알고리즘 분포</h3>
+        <canvas id="pqcChart"></canvas>
+    </div>
+</div>
+
+<!-- Recent Connections -->
+<div class="table-card">
+    <h3>최근 연결</h3>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>연결 ID</th>
+                <th>주소</th>
+                <th>상태</th>
+                <th>연결 시간</th>
+                <th>메시지 (송/수신)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for conn in active_connections %}
+            <tr>
+                <td><code>{{ conn.id[:20] }}...</code></td>
+                <td>{{ conn.remote_address }}</td>
+                <td><span class="badge {{ conn.status }}">{{ conn.status }}</span></td>
+                <td>{{ conn.connected_at }}</td>
+                <td>{{ conn.messages_sent }} / {{ conn.messages_received }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <a href="/admin/connections" class="btn">모든 연결 보기 →</a>
+</div>
+
+<!-- TC375 Devices -->
+<div class="table-card">
+    <h3>TC375 디바이스</h3>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>디바이스 ID</th>
+                <th>프로토콜</th>
+                <th>상태</th>
+                <th>펌웨어</th>
+                <th>마지막 하트비트</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for device in tc375_devices %}
+            <tr>
+                <td><code>{{ device.id }}</code></td>
+                <td>{{ device.protocol }}</td>
+                <td><span class="badge {{ device.status }}">{{ device.status }}</span></td>
+                <td>{{ device.firmware_version or 'N/A' }}</td>
+                <td>{{ device.last_heartbeat }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <a href="/admin/devices" class="btn">모든 디바이스 보기 →</a>
+</div>
+
+<script>
+// 실시간 업데이트
+setInterval(async () => {
+    try {
+        const response = await fetch('/admin/api/dashboard-stats');
+        const data = await response.json();
+        
+        document.getElementById('active-connections').textContent = data.active_connections_count;
+        document.getElementById('online-devices').textContent = data.online_devices_count;
+        document.getElementById('server-time').textContent = new Date(data.timestamp).toLocaleString('ko-KR');
+    } catch (error) {
+        console.error('Failed to update stats:', error);
+    }
+}, 5000); // 5초마다 업데이트
+
+// Protocol Chart
+const protocolCtx = document.getElementById('protocolChart').getContext('2d');
+new Chart(protocolCtx, {
+    type: 'doughnut',
+    data: {
+        labels: ['v1', 'v2'],
+        datasets: [{
+            data: [{{ stats.tc375.by_protocol.v1 }}, {{ stats.tc375.by_protocol.v2 }}],
+            backgroundColor: ['#FF6384', '#36A2EB']
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: true
+    }
+});
+
+// PQC Chart
+const pqcData = {{ stats.pqc.by_algorithm | tojson }};
+const pqcLabels = Object.keys(pqcData);
+const pqcValues = Object.values(pqcData);
+
+const pqcCtx = document.getElementById('pqcChart').getContext('2d');
+new Chart(pqcCtx, {
+    type: 'bar',
+    data: {
+        labels: pqcLabels,
+        datasets: [{
+            label: 'PQC 세션',
+            data: pqcValues,
+            backgroundColor: '#4BC0C0'
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        scales: {
+            y: {
+                beginAtZero: true
+            }
+        }
+    }
+});
+</script>
+{% endblock %}
+
