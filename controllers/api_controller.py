@@ -23,6 +23,7 @@ from services.connection_service import ConnectionService
 from services.message_service import MessageService
 from services.tc375_service import TC375Service
 from services.pqc_service import PQCService
+from message_history import get_message_history
 from utils.logger import get_logger
 
 
@@ -255,6 +256,38 @@ def create_api_router(
         
         except Exception as e:
             logger.error(f"Error getting statistics: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    @router.get("/messages/received", response_model=Dict[str, Any])
+    async def get_received_messages(limit: int = 50):
+        """Get messages received from clients."""
+        try:
+            history = get_message_history()
+            messages = history.get_received_only(limit)
+            
+            return {
+                "count": len(messages),
+                "messages": messages
+            }
+        
+        except Exception as e:
+            logger.error(f"Error getting received messages: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    @router.get("/messages/recent", response_model=Dict[str, Any])
+    async def get_recent_messages(limit: int = 50):
+        """Get all recent messages (sent + received)."""
+        try:
+            history = get_message_history()
+            messages = history.get_recent(limit)
+            
+            return {
+                "count": len(messages),
+                "messages": messages
+            }
+        
+        except Exception as e:
+            logger.error(f"Error getting recent messages: {e}")
             raise HTTPException(status_code=500, detail=str(e))
     
     return router

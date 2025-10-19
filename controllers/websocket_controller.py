@@ -11,6 +11,7 @@ from services.message_service import MessageService
 from services.tc375_service import TC375Service
 from services.pqc_service import PQCService
 from utils.logger import LoggerMixin
+from message_history import get_message_history
 
 
 class WebSocketController(LoggerMixin):
@@ -95,6 +96,14 @@ class WebSocketController(LoggerMixin):
     
     async def _route_message(self, connection_id: str, message: Message):
         """Route message to appropriate handler."""
+        # Save received message to history
+        history = get_message_history()
+        history.add_received(
+            connection_id=connection_id,
+            message_type=message.type.value,
+            payload=message.payload
+        )
+        
         handler = self.message_handlers.get(message.type)
         
         if handler:
