@@ -4,7 +4,7 @@ Connection service for managing WebSocket connections.
 
 from typing import List, Optional, Dict, Any
 from datetime import datetime
-from websockets.server import WebSocketServerProtocol
+from fastapi import WebSocket
 
 from models.connection import Connection, ConnectionStatus
 from repositories.connection import ConnectionRepository
@@ -19,11 +19,11 @@ class ConnectionService(LoggerMixin):
     def __init__(self, repository: ConnectionRepository, config: Config):
         self.repository = repository
         self.config = config
-        self._websockets: Dict[str, WebSocketServerProtocol] = {}
+        self._websockets: Dict[str, WebSocket] = {}
     
     async def create_connection(
         self,
-        websocket: WebSocketServerProtocol,
+        websocket: WebSocket,
         user_agent: Optional[str] = None,
         protocol_version: Optional[str] = None
     ) -> Connection:
@@ -45,8 +45,8 @@ class ConnectionService(LoggerMixin):
         current_count = len(self.repository.get_active_connections())
         validate_connection_limit(current_count, self.config.security.max_connections)
         
-        # Create connection ID
-        remote_addr = websocket.remote_address
+        # Create connection ID (FastAPI WebSocket uses .client instead of .remote_address)
+        remote_addr = websocket.client  # FastAPI WebSocket attribute
         connection_id = f"{remote_addr[0]}:{remote_addr[1]}:{int(datetime.utcnow().timestamp())}"
         
         # Create connection model
@@ -117,7 +117,7 @@ class ConnectionService(LoggerMixin):
         """Get all active connections."""
         return self.repository.get_active_connections()
     
-    def get_websocket(self, connection_id: str) -> Optional[WebSocketServerProtocol]:
+    def get_websocket(self, connection_id: str) -> Optional[WebSocket]:
         """Get WebSocket by connection ID."""
         return self._websockets.get(connection_id)
     

@@ -41,10 +41,11 @@ ENV PATH=/root/.local/bin:$PATH
 # Expose ports
 EXPOSE 8765
 
-# Health check
+# Health check (use https if TLS is enabled, http otherwise)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8765/api/health')"
+    CMD python -c "import urllib.request, ssl; ctx = ssl._create_unverified_context(); urllib.request.urlopen('https://localhost:8765/api/health', context=ctx)" || \
+        python -c "import urllib.request; urllib.request.urlopen('http://localhost:8765/api/health')"
 
-# Run the application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8765"]
+# Run the application with Python (includes TLS support)
+CMD ["python", "main.py"]
 
